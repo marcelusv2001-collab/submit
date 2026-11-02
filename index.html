@@ -2,15 +2,18 @@
 <html>
 <head>
   <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Score Entry</title>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    .card { max-width: 400px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    body { font-family: sans-serif; margin: 20px; background-color: #f7f9fc; }
+    .card { max-width: 450px; border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin: 0 auto 20px auto; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input[type="text"], select { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-    button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    input[type="text"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+    button { width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
     button:hover { background-color: #45a049; }
     .secondary-btn { background-color: #008CBA; margin-bottom: 10px; }
     .secondary-btn:hover { background-color: #007399; }
+    .status-box { font-size: 0.9em; padding: 10px; background: #eef2f5; border-radius: 4px; margin-bottom: 15px; font-weight: bold; text-align: center; }
     #message { margin-top: 15px; font-weight: bold; text-align: center; }
   </style>
 </head>
@@ -19,19 +22,19 @@
   <!-- Tablet Setup Card -->
   <div class="card" id="setupCard">
     <h3>Tablet Configuration</h3>
-    <label for="tabletIdInput">Enter Tablet ID (e.g., 01, 02):</label>
-    <input type="text" id="tabletIdInput" placeholder="2-digit ID">
+    <label for="tabletIdInput">Tablet ID:</label>
+    <input type="text" id="tabletIdInput" placeholder="e.g. 01, 02">
     <button type="button" class="secondary-btn" onclick="saveTabletId()">Save Tablet ID</button>
   </div>
 
   <!-- Submit Match Results Card -->
   <div class="card">
     <h2>Submit Match Results</h2>
-    <div id="currentTabletDisplay" style="margin-bottom: 15px; font-size: 0.9em; color: #555;"></div>
+    <div id="tabletStatus" class="status-box">Checking Tablet ID...</div>
     
     <form id="resultForm">
-      <label for="matchId">Match ID:</label>
-      <input type="text" id="matchId" name="matchId" required>
+      <label for="matchId">Assigned Match ID:</label>
+      <input type="text" id="matchId" name="matchId" placeholder="Auto-fetching..." readonly required style="background-color: #e9ecef;">
 
       <label for="winner">Winner:</label>
       <input type="text" id="winner" name="winner" required>
@@ -43,6 +46,7 @@
       <input type="text" id="finalScore" name="finalScore" required>
 
       <button type="submit" id="submitBtn">Submit Result</button>
+      <button type="button" class="secondary-btn" onclick="fetchAssignedMatch()" style="margin-top: 10px;">Refresh Assignment</button>
     </form>
 
     <div id="message"></div>
@@ -51,34 +55,72 @@
   <script>
     const scriptUrl = 'https://script.google.com/macros/s/AKfycbwHNWPhIB7RKMpFQrzb5DLqlsBXf_Mb6dgh8Fjb8B7yRd906omOtjEw6AXBRJaREwL6XQ/exec';
 
-    // Check if tablet ID is already saved on load
+    // On page load, initialize Tablet ID and auto-fetch match assignment
     window.addEventListener('DOMContentLoaded', () => {
       const savedId = localStorage.getItem('tabletId');
       if (savedId) {
         document.getElementById('tabletIdInput').value = savedId;
-        document.getElementById('currentTabletDisplay').textContent = 'Active Tablet ID: ' + savedId;
+        document.getElementById('tabletStatus').textContent = 'Active Tablet: ' + savedId;
+        document.getElementById('tabletStatus').style.color = '#2e7d32';
+        fetchAssignedMatch();
       } else {
-        document.getElementById('currentTabletDisplay').textContent = 'Warning: No Tablet ID set!';
+        document.getElementById('tabletStatus').textContent = '⚠️ Warning: Set Tablet ID Above First';
+        document.getElementById('tabletStatus').style.color = '#c62828';
       }
     });
 
+    // Save Tablet ID to localStorage
     function saveTabletId() {
       const id = document.getElementById('tabletIdInput').value.trim();
       if (id) {
         localStorage.setItem('tabletId', id);
-        document.getElementById('currentTabletDisplay').textContent = 'Active Tablet ID: ' + id;
-        alert('Tablet ID saved successfully!');
+        document.getElementById('tabletStatus').textContent = 'Active Tablet: ' + id;
+        document.getElementById('tabletStatus').style.color = '#2e7d32';
+        alert('Tablet ID saved!');
+        fetchAssignedMatch();
       } else {
         alert('Please enter a valid Tablet ID.');
       }
     }
 
+    // Auto-fetch match assignment from 'Active Assignments' sheet using doGet
+    function fetchAssignedMatch() {
+      const tabletId = localStorage.getItem('tabletId');
+      if (!tabletId) return;
+
+      const messageDiv = document.getElementById('message');
+      messageDiv.textContent = 'Fetching match assignment...';
+
+      fetch(`${scriptUrl}?tabletId=${encodeURIComponent(tabletId)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0 && data[0]['Match ID']) {
+            document.getElementById('matchId').value = data[0]['Match ID'];
+            messageDiv.textContent = '';
+          } else {
+            document.getElementById('matchId').value = '';
+            messageDiv.textContent = 'No active match assigned to this tablet.';
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching assignment:', err);
+          messageDiv.textContent = 'Failed to fetch match assignment.';
+        });
+    }
+
+    // Submit match result via doPost
     document.getElementById('resultForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
       const tabletId = localStorage.getItem('tabletId');
+      const matchId = document.getElementById('matchId').value;
+
       if (!tabletId) {
-        alert('Please set and save a Tablet ID first!');
+        alert('Please set a Tablet ID first!');
+        return;
+      }
+      if (!matchId) {
+        alert('No Match ID assigned!');
         return;
       }
 
@@ -86,11 +128,11 @@
       const messageDiv = document.getElementById('message');
       
       submitBtn.disabled = true;
-      messageDiv.textContent = 'Submitting...';
+      messageDiv.textContent = 'Submitting match result...';
 
       const payload = {
         tabletId: tabletId,
-        matchId: document.getElementById('matchId').value,
+        matchId: matchId,
         winner: document.getElementById('winner').value,
         loser: document.getElementById('loser').value,
         finalScore: document.getElementById('finalScore').value
@@ -103,10 +145,13 @@
       .then(response => response.json())
       .then(data => {
         if (data.status === 'success') {
-          messageDiv.textContent = 'Result submitted successfully!';
+          messageDiv.textContent = 'Match completed and assignment cleared!';
           document.getElementById('resultForm').reset();
+          document.getElementById('matchId').value = '';
+          // Refresh after short delay to confirm clear
+          setTimeout(fetchAssignedMatch, 1500);
         } else {
-          messageDiv.textContent = 'Error: ' + (data.message || 'Unknown error');
+          messageDiv.textContent = 'Error: ' + (data.message || 'Submission failed');
         }
       })
       .catch(error => {
@@ -117,10 +162,6 @@
         submitBtn.disabled = false;
       });
     });
-  </script>
-
-</body>
-</html>
   </script>
 
 </body>
