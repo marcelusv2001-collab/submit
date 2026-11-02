@@ -8,12 +8,18 @@
     body { font-family: sans-serif; margin: 20px; background-color: #f7f9fc; }
     .card { max-width: 450px; border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin: 0 auto 20px auto; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input[type="text"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
     button { width: 100%; padding: 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
     button:hover { background-color: #45a049; }
-    .secondary-btn { background-color: #008CBA; margin-bottom: 10px; }
+    .secondary-btn { background-color: #008CBA; margin-top: 10px; }
     .secondary-btn:hover { background-color: #007399; }
     .status-box { font-size: 0.9em; padding: 10px; background: #eef2f5; border-radius: 4px; margin-bottom: 15px; font-weight: bold; text-align: center; }
+    
+    /* Player selection toggle cards */
+    .players-container { display: flex; gap: 10px; margin-bottom: 15px; }
+    .player-card { flex: 1; padding: 15px; border: 2px solid #ddd; border-radius: 6px; text-align: center; cursor: pointer; background: #fafafa; font-weight: bold; transition: all 0.2s; }
+    .player-card.winner { border-color: #4CAF50; background-color: #e8f5e9; color: #2e7d32; }
+    
     #message { margin-top: 15px; font-weight: bold; text-align: center; }
   </style>
 </head>
@@ -33,20 +39,23 @@
     <div id="tabletStatus" class="status-box">Checking Tablet ID...</div>
     
     <form id="resultForm">
-      <label for="matchId">Assigned Match ID:</label>
-      <input type="text" id="matchId" name="matchId" placeholder="Auto-fetching..." readonly required style="background-color: #e9ecef;">
+      <label for="matchIdDisplay">Assigned Match ID:</label>
+      <input type="text" id="matchIdDisplay" readonly style="background-color: #e9ecef; font-weight: bold;" placeholder="Waiting for assignment...">
 
-      <label for="winner">Winner:</label>
-      <input type="text" id="winner" name="winner" required>
+      <label>Tap the Winner:</label>
+      <div class="players-container">
+        <div id="p1Box" class="player-card" onclick="selectWinner('p1')">
+          <div id="p1Name">Player 1</div>
+          <div style="font-size: 0.8em; color: #666; margin-top: 5px;">Score: <input type="number" id="p1Score" style="width: 60px; display:inline-block; margin:0; padding:4px;" min="0" value="0" onclick="event.stopPropagation()"></div>
+        </div>
+        <div id="p2Box" class="player-card" onclick="selectWinner('p2')">
+          <div id="p2Name">Player 2</div>
+          <div style="font-size: 0.8em; color: #666; margin-top: 5px;">Score: <input type="number" id="p2Score" style="width: 60px; display:inline-block; margin:0; padding:4px;" min="0" value="0" onclick="event.stopPropagation()"></div>
+        </div>
+      </div>
 
-      <label for="loser">Loser:</label>
-      <input type="text" id="loser" name="loser" required>
-
-      <label for="finalScore">Final Score:</label>
-      <input type="text" id="finalScore" name="finalScore" required>
-
-      <button type="submit" id="submitBtn">Submit Result</button>
-      <button type="button" class="secondary-btn" onclick="fetchAssignedMatch()" style="margin-top: 10px;">Refresh Assignment</button>
+      <button type="submit" id="submitBtn">Submit Final Result</button>
+      <button type="button" class="secondary-btn" onclick="fetchAssignedMatch()">Refresh Assignment</button>
     </form>
 
     <div id="message"></div>
@@ -55,7 +64,9 @@
   <script>
     const scriptUrl = 'https://script.google.com/macros/s/AKfycbwHNWPhIB7RKMpFQrzb5DLqlsBXf_Mb6dgh8Fjb8B7yRd906omOtjEw6AXBRJaREwL6XQ/exec';
 
-    // On page load, initialize Tablet ID and auto-fetch match assignment
+    let currentMatchData = null;
+    let selectedWinnerKey = null; // 'p1' or 'p2'
+
     window.addEventListener('DOMContentLoaded', () => {
       const savedId = localStorage.getItem('tabletId');
       if (savedId) {
@@ -69,7 +80,6 @@
       }
     });
 
-    // Save Tablet ID to localStorage
     function saveTabletId() {
       const id = document.getElementById('tabletIdInput').value.trim();
       if (id) {
@@ -83,7 +93,6 @@
       }
     }
 
-    // Auto-fetch match assignment from 'Active Assignments' sheet using doGet
     function fetchAssignedMatch() {
       const tabletId = localStorage.getItem('tabletId');
       if (!tabletId) return;
@@ -94,11 +103,21 @@
       fetch(`${scriptUrl}?tabletId=${encodeURIComponent(tabletId)}`)
         .then(response => response.json())
         .then(data => {
-          if (Array.isArray(data) && data.length > 0 && data[0]['Match ID']) {
-            document.getElementById('matchId').value = data[0]['Match ID'];
+          currentMatchData = data;
+          if (data && data['Match ID']) {
+            document.getElementById('matchIdDisplay').value = data['Match ID'];
+            document.getElementById('p1Name').textContent = data['Player 1'] || 'Player 1';
+            document.getElementById('p2Name').textContent = data['Player 2'] || 'Player 2';
             messageDiv.textContent = '';
+            
+            // Reset winner selection
+            selectedWinnerKey = null;
+            document.getElementById('p1Box').classList.remove('winner');
+            document.getElementById('p2Box').classList.remove('winner');
           } else {
-            document.getElementById('matchId').value = '';
+            document.getElementById('matchIdDisplay').value = '';
+            document.getElementById('p1Name').textContent = 'Player 1';
+            document.getElementById('p2Name').textContent = 'Player 2';
             messageDiv.textContent = 'No active match assigned to this tablet.';
           }
         })
@@ -108,34 +127,57 @@
         });
     }
 
-    // Submit match result via doPost
+    function selectWinner(playerKey) {
+      selectedWinnerKey = playerKey;
+      if (playerKey === 'p1') {
+        document.getElementById('p1Box').classList.add('winner');
+        document.getElementById('p2Box').classList.remove('winner');
+      } else {
+        document.getElementById('p2Box').classList.add('winner');
+        document.getElementById('p1Box').classList.remove('winner');
+      }
+    }
+
     document.getElementById('resultForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
       const tabletId = localStorage.getItem('tabletId');
-      const matchId = document.getElementById('matchId').value;
+      const matchId = document.getElementById('matchIdDisplay').value;
 
-      if (!tabletId) {
-        alert('Please set a Tablet ID first!');
+      if (!tabletId || !matchId) {
+        alert('No active match loaded to submit!');
         return;
       }
-      if (!matchId) {
-        alert('No Match ID assigned!');
+      if (!selectedWinnerKey) {
+        alert('Please tap/select the winning player before submitting!');
         return;
       }
+
+      const p1Name = currentMatchData['Player 1'] || 'Player 1';
+      const p2Name = currentMatchData['Player 2'] || 'Player 2';
+      const winnerName = selectedWinnerKey === 'p1' ? p1Name : p2Name;
+      const loserName = selectedWinnerKey === 'p1' ? p2Name : p1Name;
+      
+      const p1Score = document.getElementById('p1Score').value;
+      const p2Score = document.getElementById('p2Score').value;
+      const finalScore = `${p1Score} - ${p2Score}`;
+
+      // Confirmation popup before sending
+      const confirmSubmit = window.confirm(`Are you sure you want to submit these results?\n\nWinner: ${winnerName} (${finalScore})\nLoser: ${loserName}`);
+      if (!confirmSubmit) return;
 
       const submitBtn = document.getElementById('submitBtn');
       const messageDiv = document.getElementById('message');
       
       submitBtn.disabled = true;
-      messageDiv.textContent = 'Submitting match result...';
+      messageDiv.textContent = 'Submitting final result...';
 
       const payload = {
         tabletId: tabletId,
         matchId: matchId,
-        winner: document.getElementById('winner').value,
-        loser: document.getElementById('loser').value,
-        finalScore: document.getElementById('finalScore').value
+        winner: winnerName,
+        loser: loserName,
+        finalScore: finalScore
       };
 
       fetch(scriptUrl, {
@@ -145,10 +187,13 @@
       .then(response => response.json())
       .then(data => {
         if (data.status === 'success') {
-          messageDiv.textContent = 'Match completed and assignment cleared!';
+          messageDiv.textContent = 'Result submitted successfully & tablet cleared!';
           document.getElementById('resultForm').reset();
-          document.getElementById('matchId').value = '';
-          // Refresh after short delay to confirm clear
+          document.getElementById('matchIdDisplay').value = '';
+          selectedWinnerKey = null;
+          document.getElementById('p1Box').classList.remove('winner');
+          document.getElementById('p2Box').classList.remove('winner');
+          
           setTimeout(fetchAssignedMatch, 1500);
         } else {
           messageDiv.textContent = 'Error: ' + (data.message || 'Submission failed');
