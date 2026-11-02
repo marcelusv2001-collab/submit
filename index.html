@@ -1,218 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Match Score Submission</title>
+  <base target="_top">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 400px;
-    }
-    h2 {
-      text-align: center;
-      color: #333;
-      margin-top: 0;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      color: #666;
-      font-weight: bold;
-    }
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .secondary-btn {
-      background-color: #6c757d;
-      margin-top: 10px;
-    }
-    .secondary-btn:hover {
-      background-color: #5a6268;
-    }
-    #message {
-      margin-top: 15px;
-      text-align: center;
-      font-weight: bold;
-    }
-    .hidden {
-      display: none;
-    }
-    #deviceInfo {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #e9ecef;
-      padding: 8px 12px;
-      border-radius: 4px;
-    }
+    body { font-family: sans-serif; margin: 20px; }
+    form { max-width: 400px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input[type="text"], select { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+    button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    #message { margin-top: 15px; font-weight: bold; text-align: center; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <h2>Match Submission</h2>
+  <h2>Submit Match Results</h2>
+  <form id="resultForm">
+    <label for="matchId">Match ID:</label>
+    <input type="text" id="matchId" name="matchId" required>
 
-    <!-- STEP 1: Tablet ID Configuration (Shows only if ID is not set) -->
-    <div id="setupSection" class="hidden">
-      <div class="form-group">
-        <label for="tabletIdInput">Enter Tablet ID (e.g., 04):</label>
-        <input type="number" id="tabletIdInput" min="1" max="99" placeholder="Enter 2-digit ID">
-      </div>
-      <button type="button" id="saveIdBtn">Save Tablet ID</button>
-    </div>
+    <label for="winner">Winner:</label>
+    <input type="text" id="winner" name="winner" required>
 
-    <!-- STEP 2: Main Match Form (Shows only after Tablet ID is saved) -->
-    <div id="formSection" class="hidden">
-      <div id="deviceInfo">
-        <span id="displayTabletId">Tablet ID: --</span>
-        <button type="button" id="changeIdBtn" style="width: auto; padding: 4px 8px; font-size: 12px;">Change ID</button>
-      </div>
+    <label for="loser">Loser:</label>
+    <input type="text" id="loser" name="loser" required>
 
-      <form id="scoreForm">
-        <div class="form-group">
-          <label for="matchId">Assigned Match ID:</label>
-          <input type="text" id="matchId" name="matchId" readonly required placeholder="Waiting for assignment...">
-        </div>
-        <div class="form-group">
-          <label for="winner">Winner Name:</label>
-          <input type="text" id="winner" name="winner" required placeholder="Enter winner name">
-        </div>
-        <button type="submit">Submit Result</button>
-      </form>
-    </div>
+    <label for="finalScore">Final Score:</label>
+    <input type="text" id="finalScore" name="finalScore" required>
 
-    <div id="message"></div>
-  </div>
+    <button type="submit" id="submitBtn">Submit Result</button>
+  </form>
+
+  <div id="message"></div>
 
   <script>
     const scriptUrl = 'https://script.google.com/macros/s/AKfycbwHNWPhIB7RKMpFQrzb5DLqlsBXf_Mb6dgh8Fjb8B7yRd906omOtjEw6AXBRJaREwL6XQ/exec';
-    
-    const setupSection = document.getElementById('setupSection');
-    const formSection = document.getElementById('formSection');
-    const tabletIdInput = document.getElementById('tabletIdInput');
-    const saveIdBtn = document.getElementById('saveIdBtn');
-    const changeIdBtn = document.getElementById('changeIdBtn');
-    const displayTabletId = document.getElementById('displayTabletId');
-    const messageDiv = document.getElementById('message');
 
-    // Check if tablet ID is already saved in this browser
-    let currentTabletId = localStorage.getItem('activeTabletId');
-
-    if (!currentTabletId) {
-      // No ID set yet, show setup screen
-      setupSection.classList.remove('hidden');
-    } else {
-      // ID is set, load main form and fetch match
-      loadMatchForm(currentTabletId);
-    }
-
-    // Save Tablet ID button click
-    saveIdBtn.addEventListener('click', function() {
-      const val = tabletIdInput.value.trim();
-      if (!val) {
-        alert('Please enter a valid tablet ID.');
-        return;
-      }
-      localStorage.setItem('activeTabletId', val);
-      loadMatchForm(val);
-    });
-
-    // Change ID button click
-    changeIdBtn.addEventListener('click', function() {
-      localStorage.removeItem('activeTabletId');
-      formSection.classList.add('hidden');
-      setupSection.classList.remove('hidden');
-      tabletIdInput.value = '';
-      messageDiv.textContent = '';
-    });
-
-    function loadMatchForm(tabletId) {
-      setupSection.classList.add('hidden');
-      formSection.classList.remove('hidden');
-      displayTabletId.textContent = 'Tablet ID: ' + tabletId;
-      
-      messageDiv.textContent = 'Checking for assigned match...';
-      messageDiv.style.color = '#007BFF';
-
-      // Fetch assigned match from Google Sheets via Apps Script
-      fetch(scriptUrl + '?tabletId=' + tabletId)
-        .then(response => response.json())
-        .then(data => {
-          if (data && data.length > 0 && data[0]['Match ID']) {
-            document.getElementById('matchId').value = data[0]['Match ID'];
-            messageDiv.textContent = '';
-          } else {
-            document.getElementById('matchId').value = '';
-            messageDiv.textContent = 'No match currently assigned.';
-            messageDiv.style.color = '#6c757d';
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching assigned match:', error);
-          messageDiv.textContent = 'Error loading assigned match.';
-          messageDiv.style.color = 'red';
-        });
-    }
-
-    // Handle form submission back to the Apps Script
-    document.getElementById('scoreForm').addEventListener('submit', function(e) {
+    document.getElementById('resultForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
-      const matchId = document.getElementById('matchId').value;
-      const winner = document.getElementById('winner').value;
-      const tabletId = localStorage.getItem('activeTabletId');
-
-      if (!matchId) {
-        alert('No match ID loaded to submit.');
-        return;
-      }
+      const submitBtn = document.getElementById('submitBtn');
+      const messageDiv = document.getElementById('message');
+      
+      submitBtn.disabled = true;
+      messageDiv.textContent = 'Submitting...';
 
       const payload = {
-        tabletId: tabletId,
-        matchId: matchId,
-        winner: winner
+        tabletId: localStorage.getItem('tabletId') || '',
+        matchId: document.getElementById('matchId').value,
+        winner: document.getElementById('winner').value,
+        loser: document.getElementById('loser').value,
+        finalScore: document.getElementById('finalScore').value
       };
-
-      messageDiv.textContent = 'Submitting...';
-      messageDiv.style.color = '#007BFF';
 
       fetch(scriptUrl, {
         method: 'POST',
@@ -220,22 +59,19 @@
       })
       .then(response => response.json())
       .then(data => {
-        if(data.status === 'success') {
+        if (data.status === 'success') {
           messageDiv.textContent = 'Result submitted successfully!';
-          messageDiv.style.color = 'green';
-          document.getElementById('scoreForm').reset();
-          document.getElementById('matchId').value = '';
-          // Optionally re-fetch after a short pause to see if a new match was assigned
-          setTimeout(() => loadMatchForm(tabletId), 2000);
+          document.getElementById('resultForm').reset();
         } else {
-          messageDiv.textContent = 'Error: ' + (data.message || 'Submission failed.');
-          messageDiv.style.color = 'red';
+          messageDiv.textContent = 'Error: ' + (data.message || 'Unknown error');
         }
       })
       .catch(error => {
+        messageDiv.textContent = 'Error submitting result.';
         console.error('Error:', error);
-        messageDiv.textContent = 'Network error occurred.';
-        messageDiv.style.color = 'red';
+      })
+      .finally(() => {
+        submitBtn.disabled = false;
       });
     });
   </script>
