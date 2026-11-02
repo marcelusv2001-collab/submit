@@ -4,41 +4,84 @@
   <base target="_top">
   <style>
     body { font-family: sans-serif; margin: 20px; }
-    form { max-width: 400px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; }
+    .card { max-width: 400px; border: 1px solid #ccc; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
     input[type="text"], select { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
     button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
     button:hover { background-color: #45a049; }
+    .secondary-btn { background-color: #008CBA; margin-bottom: 10px; }
+    .secondary-btn:hover { background-color: #007399; }
     #message { margin-top: 15px; font-weight: bold; text-align: center; }
   </style>
 </head>
 <body>
 
-  <h2>Submit Match Results</h2>
-  <form id="resultForm">
-    <label for="matchId">Match ID:</label>
-    <input type="text" id="matchId" name="matchId" required>
+  <!-- Tablet Setup Card -->
+  <div class="card" id="setupCard">
+    <h3>Tablet Configuration</h3>
+    <label for="tabletIdInput">Enter Tablet ID (e.g., 01, 02):</label>
+    <input type="text" id="tabletIdInput" placeholder="2-digit ID">
+    <button type="button" class="secondary-btn" onclick="saveTabletId()">Save Tablet ID</button>
+  </div>
 
-    <label for="winner">Winner:</label>
-    <input type="text" id="winner" name="winner" required>
+  <!-- Submit Match Results Card -->
+  <div class="card">
+    <h2>Submit Match Results</h2>
+    <div id="currentTabletDisplay" style="margin-bottom: 15px; font-size: 0.9em; color: #555;"></div>
+    
+    <form id="resultForm">
+      <label for="matchId">Match ID:</label>
+      <input type="text" id="matchId" name="matchId" required>
 
-    <label for="loser">Loser:</label>
-    <input type="text" id="loser" name="loser" required>
+      <label for="winner">Winner:</label>
+      <input type="text" id="winner" name="winner" required>
 
-    <label for="finalScore">Final Score:</label>
-    <input type="text" id="finalScore" name="finalScore" required>
+      <label for="loser">Loser:</label>
+      <input type="text" id="loser" name="loser" required>
 
-    <button type="submit" id="submitBtn">Submit Result</button>
-  </form>
+      <label for="finalScore">Final Score:</label>
+      <input type="text" id="finalScore" name="finalScore" required>
 
-  <div id="message"></div>
+      <button type="submit" id="submitBtn">Submit Result</button>
+    </form>
+
+    <div id="message"></div>
+  </div>
 
   <script>
     const scriptUrl = 'https://script.google.com/macros/s/AKfycbwHNWPhIB7RKMpFQrzb5DLqlsBXf_Mb6dgh8Fjb8B7yRd906omOtjEw6AXBRJaREwL6XQ/exec';
 
+    // Check if tablet ID is already saved on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedId = localStorage.getItem('tabletId');
+      if (savedId) {
+        document.getElementById('tabletIdInput').value = savedId;
+        document.getElementById('currentTabletDisplay').textContent = 'Active Tablet ID: ' + savedId;
+      } else {
+        document.getElementById('currentTabletDisplay').textContent = 'Warning: No Tablet ID set!';
+      }
+    });
+
+    function saveTabletId() {
+      const id = document.getElementById('tabletIdInput').value.trim();
+      if (id) {
+        localStorage.setItem('tabletId', id);
+        document.getElementById('currentTabletDisplay').textContent = 'Active Tablet ID: ' + id;
+        alert('Tablet ID saved successfully!');
+      } else {
+        alert('Please enter a valid Tablet ID.');
+      }
+    }
+
     document.getElementById('resultForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
+      const tabletId = localStorage.getItem('tabletId');
+      if (!tabletId) {
+        alert('Please set and save a Tablet ID first!');
+        return;
+      }
+
       const submitBtn = document.getElementById('submitBtn');
       const messageDiv = document.getElementById('message');
       
@@ -46,7 +89,7 @@
       messageDiv.textContent = 'Submitting...';
 
       const payload = {
-        tabletId: localStorage.getItem('tabletId') || '',
+        tabletId: tabletId,
         matchId: document.getElementById('matchId').value,
         winner: document.getElementById('winner').value,
         loser: document.getElementById('loser').value,
@@ -74,6 +117,10 @@
         submitBtn.disabled = false;
       });
     });
+  </script>
+
+</body>
+</html>
   </script>
 
 </body>
